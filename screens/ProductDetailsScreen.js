@@ -15,8 +15,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 
 const relatedProducts = [
-    { id: '11', title: 'Modern Lamp', price: '$15.99', image: require('../assets/store/1.png') },
-    { id: '12', title: 'Wooden Shelf', price: '$45.00', image: require('../assets/store/2.png') },
+    { id: '11', title: 'Modern Lamp', price: '$15.99', image: require('../assets/store/1.jpg') },
+    { id: '12', title: 'Wooden Shelf', price: '$45.00', image: require('../assets/store/2.jpg') },
     { id: '13', title: 'Comfy Sofa', price: '$299.99', image: require('../assets/store/3.jpg') },
 ];
 

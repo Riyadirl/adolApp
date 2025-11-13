@@ -1,0 +1,72 @@
+[
+    {
+        "id": "1",
+        "title": "Multi Vitamin",
+        "price": "$10.99",
+        "image": "1.jpg",
+        "tag": "Best Seller"
+    },
+    {
+        "id": "2",
+        "title": "OLLY",
+        "price": "$14.95",
+        "image": "2.jpg",
+        "tag": "New"
+    },
+    {
+        "id": "3",
+        "title": "VitaOne Kids",
+        "price": "$20.95",
+        "image": "3.jpg",
+        "tag": "Best Seller"
+    },
+    {
+        "id": "4",
+        "title": "Gexena",
+        "price": "$25.95",
+        "image": "4.jpg",
+        "tag": "New"
+    },
+    {
+        "id": "5",
+        "title": "Ensure",
+        "price": "$18.95",
+        "image": "5.jpg",
+        "tag": "Best Seller"
+    },
+    {
+        "id": "6",
+        "title": "Nutren Senior",
+        "price": "$20",
+        "image": "6.jpg",
+        "tag": "New"
+    },
+    {
+        "id": "7",
+        "title": "Cellular Nutrition",
+        "price": "$14.95",
+        "image": "7.jpg",
+        "tag": "Best Seller"
+    },
+    {
+        "id": "8",
+        "title": "Teen Skin",
+        "price": "$10",
+        "image": "8.jpg",
+        "tag": "New"
+    },
+    {
+        "id": "9",
+        "title": "One A Days",
+        "price": "$20",
+        "image": "9.jpg",
+        "tag": "Best Seller"
+    },
+    {
+        "id": "10",
+        "title": "Calming Gummies",
+        "price": "$14.95",
+        "image": "10.jpg",
+        "tag": "New"
+    }
+]

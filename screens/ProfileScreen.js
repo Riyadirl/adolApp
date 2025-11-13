@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
+import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
 const UserProfileScreen = () => {
@@ -18,6 +19,7 @@ const UserProfileScreen = () => {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const { logout } = useContext(AuthContext);
+    const navigation = useNavigation();
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -33,8 +35,17 @@ const UserProfileScreen = () => {
         return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: 'center' }} />;
     }
 
+    const dashboardItems = [
+        { icon: 'shopping-cart', label: 'Orders', value: '5', route: 'AllOrders' },
+        // { icon: 'message-circle', label: 'Messages', value: '3', route: 'Messages' },
+        { icon: 'heart', label: 'Favorites', value: '8', route: 'Favorites' },
+        { icon: 'edit-3', label: 'My Post', value: '12', route: 'CreatePost' },
+        // { icon: 'bell', label: 'Alerts', value: '2', route: 'Alerts' },
+        { icon: 'settings', label: 'Settings', value: '', route: 'Settings' },
+    ];
+
     return (
-        <ScrollView style={[styles.container, { backgroundColor: isDark ? '#101010' : '#f5f7fa' }]}>
+        <ScrollView style={[styles.container, { backgroundColor: isDark ? '#101010' : '#E8F9FF' }]}>
             <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
             {/* Header */}
@@ -49,7 +60,7 @@ const UserProfileScreen = () => {
                 <View style={styles.avatar}>
                     <Icon name="user" size={50} color="#fff" />
                 </View>
-                <Text style={[styles.name, { color: isDark ? '#fff' : '#222' }]}>{user.name}</Text>
+                <Text style={[styles.name, { color: isDark ? '#fff' : '#222' }]}>{user.username}</Text>
                 <Text style={[styles.email, { color: isDark ? '#ccc' : '#555' }]}>{user.email}</Text>
                 <Text style={[styles.role, { color: isDark ? '#aaa' : '#777' }]}>Role: {user.role}</Text>
             </View>
@@ -58,16 +69,10 @@ const UserProfileScreen = () => {
             <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#333' }]}>Your Dashboard</Text>
                 <View style={styles.cardGrid}>
-                    {[
-                        { icon: 'shopping-cart', label: 'Orders', value: '5' },
-                        { icon: 'message-circle', label: 'Messages', value: '3' },
-                        { icon: 'heart', label: 'Favorites', value: '8' },
-                        { icon: 'star', label: 'Reviews', value: '12' },
-                        { icon: 'bell', label: 'Alerts', value: '2' },
-                        { icon: 'settings', label: 'Settings', value: '' },
-                    ].map((item, index) => (
-                        <View
+                    {dashboardItems.map((item, index) => (
+                        <TouchableOpacity
                             key={index}
+                            onPress={() => navigation.navigate(item.route)}
                             style={[
                                 styles.card,
                                 { backgroundColor: isDark ? '#222' : '#fff' },
@@ -78,14 +83,14 @@ const UserProfileScreen = () => {
                                 {item.label}
                                 {item.value ? `: ${item.value}` : ''}
                             </Text>
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </View>
             </View>
 
             {/* Logout */}
             <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-                <Text style={styles.logoutText}>🚪 Logout</Text>
+                <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
         </ScrollView>
     );
@@ -94,7 +99,10 @@ const UserProfileScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
+        backgroundColor: '#E8F9FF',
+
+    }
+    ,
     header: {
         alignItems: 'center',
         paddingVertical: 50,
@@ -115,28 +123,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 6,
     },
-    name: {
-        fontSize: 22,
-        fontWeight: '700',
-        marginTop: 4,
-    },
-    email: {
-        fontSize: 15,
-        marginTop: 4,
-    },
-    role: {
-        fontSize: 14,
-        marginTop: 4,
-        fontStyle: 'italic',
-    },
-    section: {
-        padding: 20,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 16,
-    },
+    name: { fontSize: 22, fontWeight: '700', marginTop: 4 },
+    email: { fontSize: 15, marginTop: 4 },
+    role: { fontSize: 14, marginTop: 4, fontStyle: 'italic' },
+    section: { padding: 20 },
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
     cardGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',

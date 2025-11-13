@@ -1,4 +1,5 @@
-import React from 'react';
+// screens/StoreScreen.js
+import React, { useEffect, useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,23 +11,80 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import DrawerLayout from 'react-native-gesture-handler/DrawerLayout';
+import Slider from '@react-native-community/slider';
+
+import productsData from '../assets/data/product.json';
 
 const StoreScreen = ({ navigation }) => {
     const { width } = useWindowDimensions();
-    const cardWidth = (width - 36) / 2; // 12px padding + 12px gap between columns
+    const cardWidth = (width - 36) / 2;
+    const [products, setProducts] = useState([]);
+    const drawerRef = useRef(null);
 
-    const products = [
-        { id: '1', title: 'Elegant Lamp', price: '$10.99', image: require('../assets/store/1.png'), tag: 'Best Seller' },
-        { id: '2', title: 'Wooden Table', price: '$14.95', image: require('../assets/store/2.png'), tag: 'New' },
-        { id: '3', title: 'Modern Chair', price: '$20.95', image: require('../assets/store/3.jpg'), tag: 'New' },
-        { id: '4', title: 'Wall Clock', price: '$25.95', image: require('../assets/store/4.jpg'), tag: 'New' },
-        { id: '5', title: 'Indoor Plant', price: '$18.95', image: require('../assets/store/5.jpg'), tag: 'New' },
-        { id: '6', title: 'Decor Vase', price: '$20', image: require('../assets/store/6.jpg'), tag: 'New' },
-        { id: '7', title: 'Vintage Radio', price: '$14.95', image: require('../assets/store/7.jpg'), tag: 'New' },
-        { id: '8', title: 'Art Frame', price: '$10', image: require('../assets/store/8.jpg'), tag: 'New' },
-        { id: '9', title: 'Rug Carpet', price: '$20', image: require('../assets/store/9.jpg'), tag: 'New' },
-        { id: '10', title: 'Stylish Mug', price: '$14.95', image: require('../assets/store/10.jpg'), tag: 'New' },
-    ];
+    useEffect(() => {
+        const loadProducts = () => {
+            const updated = productsData.map((item) => ({
+                ...item,
+                image: getImage(item.image),
+            }));
+            setProducts(updated);
+        };
+
+        const getImage = (imagePath) => {
+            switch (imagePath) {
+                case '1.jpg':
+                    return require('../assets/store/1.jpg');
+                case '2.jpg':
+                    return require('../assets/store/2.jpg');
+                case '3.jpg':
+                    return require('../assets/store/3.jpg');
+                case '4.jpg':
+                    return require('../assets/store/4.jpg');
+                case '5.jpg':
+                    return require('../assets/store/5.jpg');
+                case '6.jpg':
+                    return require('../assets/store/6.jpg');
+                case '7.jpg':
+                    return require('../assets/store/7.jpg');
+                case '8.jpg':
+                    return require('../assets/store/8.jpg');
+                case '9.jpg':
+                    return require('../assets/store/9.jpg');
+                case '10.jpg':
+                    return require('../assets/store/10.jpg');
+                default:
+                    return require('../assets/store/1.jpg');
+            }
+        };
+
+        loadProducts();
+    }, []);
+
+    const renderDrawer = () => (
+        <View style={[styles.drawerContainer, { width: width * 0.4 }]}>
+            <Text style={styles.drawerTitle}>Filters</Text>
+
+            <Text style={styles.filterLabel}>Price Range</Text>
+            <Slider
+                minimumValue={0}
+                maximumValue={1000}
+                minimumTrackTintColor="#0277BD"
+                maximumTrackTintColor="#ccc"
+                thumbTintColor="#0277BD"
+            />
+
+            <Text style={styles.filterLabel}>Category</Text>
+            <TouchableOpacity style={styles.drawerButton}><Text>Electronics</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.drawerButton}><Text>Fashion</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.drawerButton}><Text>Books</Text></TouchableOpacity>
+
+            <Text style={styles.filterLabel}>Brand</Text>
+            <TouchableOpacity style={styles.drawerButton}><Text>Brand A</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.drawerButton}><Text>Brand B</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.drawerButton}><Text>Brand C</Text></TouchableOpacity>
+        </View>
+    );
 
     const renderProduct = ({ item }) => (
         <TouchableOpacity
@@ -37,7 +95,7 @@ const StoreScreen = ({ navigation }) => {
             <Image source={item.image} style={styles.productImage} resizeMode="cover" />
             <View style={styles.productInfo}>
                 <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.price}>{item.price}</Text>
+                <Text style={styles.price}>৳ {item.price}</Text>
             </View>
             <TouchableOpacity style={styles.addButton}>
                 <Icon name="cart-outline" size={18} color="#fff" />
@@ -47,54 +105,69 @@ const StoreScreen = ({ navigation }) => {
     );
 
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.heading}>Shop the Look</Text>
+        <DrawerLayout
+            ref={drawerRef}
+            drawerWidth={width * 0.4}
+            drawerPosition={"left"}
+            drawerType="slide"
+            renderNavigationView={renderDrawer}
+        >
+            <ScrollView style={styles.container}>
+                <TouchableOpacity
+                    style={styles.headerTouchable}
+                    onPress={() => drawerRef.current.openDrawer()}
+                    activeOpacity={0.7}
+                >
+                    <Icon name="menu" size={24} color="#0277BD" />
+                    <Text style={styles.heading}>AdoSupport Store</Text>
+                </TouchableOpacity>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
-                <TouchableOpacity style={styles.filterChip} onPress={() => navigation.navigate('Store')}>
-                    <Icon name="home-outline" size={16} style={styles.icon} />
-                    <Text style={styles.chipText}>Home</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.filterChip} onPress={() => navigation.navigate('Category')}>
-                    <Icon name="grid-outline" size={16} style={styles.icon} />
-                    <Text style={styles.chipText}>Categories</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.filterChip}
-                    onPress={() => {
-                        const bestSellers = products.filter((item) => item.tag === 'Best Seller');
-                        navigation.navigate('BestSeller', { bestSellers });
-                    }}
-                >
-                    <Icon name="flame-outline" size={16} style={styles.icon} />
-                    <Text style={styles.chipText}>Best Seller</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.filterChip}
-                    onPress={() => {
-                        const newProducts = products.filter((item) => item.tag === 'New');
-                        navigation.navigate('NewProducts', { newProducts });
-                    }}
-                >
-                    <Icon name="sparkles-outline" size={16} style={styles.icon} />
-                    <Text style={styles.chipText}>New</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.filterChip}>
-                    <Icon name="cart-outline" size={16} style={styles.icon} />
-                    <Text style={styles.chipText}>Cart</Text>
-                </TouchableOpacity>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
+                    {/* <TouchableOpacity style={styles.filterChip} onPress={() => navigation.navigate('Category', { products })}>
+                        <Icon name="grid-outline" size={16} style={styles.icon} />
+                        <Text style={styles.chipText}>Categories</Text>
+                    </TouchableOpacity> */}
+                    <TouchableOpacity
+                        style={styles.filterChip}
+                        onPress={() => {
+                            const bestSellers = products.filter((item) => item.tag === 'Best Seller');
+                            navigation.navigate('BestSeller', { bestSellers });
+                        }}
+                    >
+                        <Icon name="flame-outline" size={16} style={styles.icon} />
+                        <Text style={styles.chipText}>Best Seller</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.filterChip}
+                        onPress={() => {
+                            const newProducts = products.filter((item) => item.tag === 'New');
+                            navigation.navigate('NewProducts', { newProducts });
+                        }}
+                    >
+                        <Icon name="sparkles-outline" size={16} style={styles.icon} />
+                        <Text style={styles.chipText}>New</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.filterChip}
+                        onPress={() => {
+                            navigation.navigate('Cart');
+                        }}
+                    >
+                        <Icon name="cart-outline" size={16} style={styles.icon} />
+                        <Text style={styles.chipText}>Cart</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+
+                <FlatList
+                    data={products}
+                    renderItem={renderProduct}
+                    keyExtractor={(item) => item.id.toString()}
+                    numColumns={2}
+                    columnWrapperStyle={styles.row}
+                    contentContainerStyle={styles.productsList}
+                    scrollEnabled={false}
+                />
             </ScrollView>
-
-            <FlatList
-                data={products}
-                renderItem={renderProduct}
-                keyExtractor={(item) => item.id.toString()}
-                numColumns={2}
-                columnWrapperStyle={styles.row}
-                contentContainerStyle={styles.productsList}
-                scrollEnabled={false}
-            />
-        </ScrollView>
+        </DrawerLayout>
     );
 };
 
@@ -103,16 +176,21 @@ export default StoreScreen;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#E8F9FF',
         paddingHorizontal: 12,
         paddingTop: 10,
     },
+    headerTouchable: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        paddingHorizontal: 12,
+    },
     heading: {
-        fontSize: 26,
+        fontSize: 22,
         fontWeight: '700',
-        marginBottom: 15,
+        marginLeft: 12,
         color: '#333',
-        textAlign: 'center',
     },
     filterBar: {
         marginBottom: 15,
@@ -187,5 +265,25 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         marginLeft: 6,
+    },
+    drawerContainer: {
+        flex: 1,
+        backgroundColor: '#fff',
+        padding: 16,
+    },
+    drawerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 16,
+        color: '#333',
+    },
+    filterLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginTop: 12,
+        marginBottom: 6,
+    },
+    drawerButton: {
+        paddingVertical: 8,
     },
 });
