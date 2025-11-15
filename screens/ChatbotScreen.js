@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
     View,
     Text,
@@ -11,31 +11,38 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Animated,
+    Keyboard,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from 'react-native-vector-icons/Feather'; // For hamburger icon
+import Icon from "react-native-vector-icons/Feather";
+import { BASE_URL } from "../scr/config";
+
+// ------------------------
+// UNIVERSAL API BASE URL
+// ------------------------
+const getAPIBaseURL = () => {
+    if (Platform.OS === "web") return "http://localhost:8000";
+    return BASE_URL; // <-- Replace with your LAN IP
+};
+
+const API_URL = `${getAPIBaseURL()}/api/chatbot/`;
 
 const ChatbotScreen = () => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
-    const [typing, setTyping] = useState(false); // bot typing state
-    const [dots, setDots] = useState(""); // animated dots
-    const [welcomeMessage, setWelcomeMessage] = useState(""); // For welcome message
-    const [isFirstMessage, setIsFirstMessage] = useState(true); // Track if it's the first user message
-    const [sidebarVisible, setSidebarVisible] = useState(false); // Track sidebar visibility
+    const [typing, setTyping] = useState(false);
+    const [dots, setDots] = useState("");
+    const [welcomeMessage] = useState("Welcome to CareSerenity! How can I help you?");
+    const [isFirstMessage, setIsFirstMessage] = useState(true);
+    const [sidebarVisible, setSidebarVisible] = useState(false);
 
-    const sidebarAnim = useRef(new Animated.Value(-300)).current; // Sidebar animation value (starts off-screen)
+    const sidebarAnim = useRef(new Animated.Value(-300)).current;
     const flatListRef = useRef(null);
 
-    const welcomeMessageText = "Welcome to CareSerenity! How can I help you?"; // Text for welcome message
-
-    // Removed typing effect and set the welcome message instantly
-    useEffect(() => {
-        setWelcomeMessage(welcomeMessageText);
-    }, []);
-
-    // Animate the dots like "...", "...."
+    // ------------------------
+    // Typing dots animation (...)
+    // ------------------------
     useEffect(() => {
         let interval;
         if (typing) {
@@ -48,20 +55,19 @@ const ChatbotScreen = () => {
         return () => clearInterval(interval);
     }, [typing]);
 
-    // Send the user's message to the bot
+    // ------------------------
+    // SEND MESSAGE
+    // ------------------------
     const sendMessage = async () => {
         if (!input.trim()) return;
 
-        // Remove the welcome message if it's the first message
         if (isFirstMessage) {
-            setMessages((prevMessages) =>
-                prevMessages.filter((message) => message.text !== welcomeMessageText)
-            );
-            setIsFirstMessage(false); // Set first message flag to false
+            setMessages([]);  // Clear previous messages if it's the first message
+            setIsFirstMessage(false);
         }
 
-        const newMessage = { sender: "user", text: input };
-        setMessages((prev) => [...prev, newMessage]);
+        const userMsg = { sender: "user", text: input };
+        setMessages((prev) => [...prev, userMsg]);
 
         const token = await AsyncStorage.getItem("access_token");
         setInput("");
@@ -69,28 +75,28 @@ const ChatbotScreen = () => {
         setTyping(true);
 
         try {
-            const response = await fetch("http://192.168.10.108:8000/api/chatbot/", {
+            const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
+                    Authorization: token ? `Bearer ${token}` : "",
                 },
                 body: JSON.stringify({ query: input }),
             });
 
-            if (!response.body) throw new Error("No response body (stream missing).");
+            if (!response.body) throw new Error("Streaming not supported on this device");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
 
-            let botMessage = { sender: "bot", text: "" };
-            setMessages((prev) => [...prev, botMessage]);
+            let botMsg = { sender: "bot", text: "" };
+            setMessages((prev) => [...prev, botMsg]);
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value, { stream: true });
+                const chunk = decoder.decode(value);
                 const lines = chunk.split("\n");
 
                 for (let line of lines) {
@@ -98,28 +104,25 @@ const ChatbotScreen = () => {
                         try {
                             const json = JSON.parse(line.replace("data: ", ""));
                             if (json.type === "chunk" && json.content) {
-                                // Typing effect: add letters one by one
                                 for (let char of json.content) {
-                                    botMessage.text += char;
+                                    botMsg.text += char;
                                     setMessages((prev) => {
                                         const updated = [...prev];
-                                        updated[updated.length - 1] = { ...botMessage };
+                                        updated[updated.length - 1] = { ...botMsg };
                                         return updated;
                                     });
-                                    await new Promise((r) => setTimeout(r, 5)); // typing speed
+                                    await new Promise((r) => setTimeout(r, 5));
                                 }
                             }
-                        } catch (err) {
-                            console.log("Skipping non-JSON line:", line);
-                        }
+                        } catch { }
                     }
                 }
             }
         } catch (error) {
-            console.error("Error with API call:", error);
+            console.log("Chatbot error:", error);
             setMessages((prev) => [
                 ...prev,
-                { sender: "bot", text: "⚠️ Error fetching response." },
+                { sender: "bot", text: "⚠️ Error connecting to the chatbot." },
             ]);
         } finally {
             setLoading(false);
@@ -127,47 +130,65 @@ const ChatbotScreen = () => {
         }
     };
 
-    // Toggle Sidebar visibility
+    // ------------------------
+    // SIDEBAR ANIMATION
+    // ------------------------
     const toggleSidebar = () => {
         Animated.timing(sidebarAnim, {
-            toValue: sidebarVisible ? -300 : 0, // Slide the sidebar in/out
-            duration: 300,
+            toValue: sidebarVisible ? -300 : 0,
+            duration: 280,
             useNativeDriver: true,
         }).start();
-        setSidebarVisible(!sidebarVisible); // Toggle visibility
+        setSidebarVisible(!sidebarVisible);
+    };
+
+    // Dismiss keyboard when tapping outside input box
+    const dismissKeyboard = () => {
+        Keyboard.dismiss();
     };
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            {/* Show the welcome message only when no messages have been sent */}
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        >
+            {/* SIDEBAR */}
+            <Animated.View style={[styles.sidebar, { transform: [{ translateX: sidebarAnim }] }]}>
+                <Text style={styles.sidebarTitle}>Chat History</Text>
+                <FlatList
+                    data={messages}
+                    keyExtractor={(_, i) => i.toString()}
+                    renderItem={({ item }) => (
+                        <View style={styles.sidebarMessage}>
+                            <Text>
+                                {item.sender === "user" ? "You: " : "Bot: "}
+                                {item.text}
+                            </Text>
+                        </View>
+                    )}
+                />
+            </Animated.View>
+
+            {/* OVERLAY */}
+            {sidebarVisible && (
+                <TouchableWithoutFeedback onPress={toggleSidebar}>
+                    <View style={styles.overlay} />
+                </TouchableWithoutFeedback>
+            )}
+
+            {/* WELCOME MESSAGE */}
             {isFirstMessage && !typing && !loading && (
                 <View style={styles.welcomeContainer}>
                     <Text style={styles.welcomeMessage}>{welcomeMessage}</Text>
                 </View>
             )}
 
-            {/* Chat History Sidebar */}
-            <Animated.View style={[styles.sidebar, { transform: [{ translateX: sidebarAnim }] }]}>
-                <Text style={styles.sidebarTitle}>Chat History</Text>
-                <FlatList
-                    data={messages}
-                    keyExtractor={(_, index) => index.toString()}
-                    renderItem={({ item }) => (
-                        <View style={styles.sidebarMessage}>
-                            <Text>{item.sender === "user" ? "You: " : "Bot: "}{item.text}</Text>
-                        </View>
-                    )}
-                />
-            </Animated.View>
-
-            {/* Overlay background when sidebar is visible */}
-            {sidebarVisible && <TouchableWithoutFeedback onPress={toggleSidebar}><View style={styles.overlay} /></TouchableWithoutFeedback>}
-
-            {/* Chat messages */}
+            {/* CHAT LIST */}
             <FlatList
                 ref={flatListRef}
                 data={messages}
-                keyExtractor={(_, index) => index.toString()}
+                keyExtractor={(_, i) => i.toString()}
                 renderItem={({ item }) => (
                     <View
                         style={[
@@ -181,14 +202,14 @@ const ChatbotScreen = () => {
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             />
 
-            {/* Bot is typing indicator */}
+            {/* BOT TYPING */}
             {typing && (
                 <View style={[styles.message, styles.botMessage]}>
                     <Text style={styles.typingText}>Typing{dots}</Text>
                 </View>
             )}
 
-            {/* Input field */}
+            {/* INPUT */}
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -201,16 +222,20 @@ const ChatbotScreen = () => {
                 </TouchableOpacity>
             </View>
 
+            {/* LOADING INDICATOR */}
             {loading && <ActivityIndicator size="small" color="#007BFF" />}
 
-            {/* Hamburger Menu Icon */}
+            {/* HAMBURGER MENU */}
             <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>
-                <Icon name="menu" size={24} color="black" />
+                <Icon name="menu" size={26} color="#333" />
             </TouchableOpacity>
         </KeyboardAvoidingView>
     );
 };
 
+// ------------------------
+// STYLES (UNCHANGED)
+// ------------------------
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#E8F9FF" },
     message: { margin: 8, padding: 12, borderRadius: 12, maxWidth: "80%" },
@@ -225,7 +250,7 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 2,
     },
     messageText: { fontSize: 16, color: "#333" },
-    typingText: { fontSize: 14, fontStyle: "italic", color: "#555" },
+    typingText: { fontStyle: "italic", color: "#555" },
     inputContainer: {
         flexDirection: "row",
         padding: 10,
@@ -235,12 +260,11 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+        backgroundColor: "#fff",
+        paddingHorizontal: 15,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: "#ddd",
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        fontSize: 16,
-        backgroundColor: "#FBFBFB",
     },
     button: {
         marginLeft: 10,
@@ -249,20 +273,9 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 20,
     },
-    buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-    welcomeContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 10,
-    },
-    welcomeMessage: {
-        fontSize: 18,
-        textAlign: "center",
-        fontWeight: "bold",
-        color: "#333",
-        marginHorizontal: 20,
-    },
+    buttonText: { color: "#fff", fontWeight: "bold" },
+    welcomeContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+    welcomeMessage: { fontSize: 18, fontWeight: "bold", textAlign: "center", paddingHorizontal: 20 },
     sidebar: {
         position: "absolute",
         top: 0,
@@ -271,19 +284,12 @@ const styles = StyleSheet.create({
         width: 250,
         backgroundColor: "#fff",
         padding: 20,
-        elevation: 5,
-        zIndex: 2,
-        display: "flex",
+        elevation: 6,
+        zIndex: 20,
     },
-    sidebarTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        marginBottom: 10,
-        marginLeft: 40,
-    },
+    sidebarTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10, textAlign: "center" },
     sidebarMessage: {
-        padding: 5,
-        marginBottom: 5,
+        paddingVertical: 6,
         borderBottomWidth: 1,
         borderBottomColor: "#ddd",
     },
@@ -293,14 +299,14 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        zIndex: 1,
+        backgroundColor: "rgba(0,0,0,0.4)",
+        zIndex: 10,
     },
     menuButton: {
         position: "absolute",
-        top: 20,
+        top: 22,
         left: 20,
-        zIndex: 3,
+        zIndex: 50,
     },
 });
 

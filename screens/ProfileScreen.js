@@ -32,77 +32,92 @@ const UserProfileScreen = () => {
     }, []);
 
     if (!user) {
-        return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: 'center' }} />;
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" />
+            </View>
+        );
     }
 
     const dashboardItems = [
         { icon: 'shopping-cart', label: 'Orders', value: '5', route: 'AllOrders' },
-        // { icon: 'message-circle', label: 'Messages', value: '3', route: 'Messages' },
         { icon: 'heart', label: 'Favorites', value: '8', route: 'Favorites' },
         { icon: 'edit-3', label: 'My Post', value: '12', route: 'CreatePost' },
-        // { icon: 'bell', label: 'Alerts', value: '2', route: 'Alerts' },
         { icon: 'settings', label: 'Settings', value: '', route: 'Settings' },
     ];
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: isDark ? '#101010' : '#E8F9FF' }]}>
-            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={{ flex: 1, backgroundColor: isDark ? '#101010' : '#E8F9FF' }}>
+            {/* ✅ Force screen content from the top */}
+            <StatusBar
+                translucent
+                backgroundColor="transparent"
+                barStyle={isDark ? 'light-content' : 'dark-content'}
+            />
 
-            {/* Header */}
-            <View
-                style={[
-                    styles.header,
-                    {
-                        backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
-                    },
+            <ScrollView
+                contentContainerStyle={[
+                    styles.container,
+                    { backgroundColor: isDark ? '#101010' : '#E8F9FF' },
                 ]}
+                showsVerticalScrollIndicator={false}
             >
-                <View style={styles.avatar}>
-                    <Icon name="user" size={50} color="#fff" />
+                {/* Header */}
+                <View
+                    style={[
+                        styles.header,
+                        {
+                            backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
+                            paddingTop: StatusBar.currentHeight || 0,
+                        },
+                    ]}
+                >
+                    <View style={styles.avatar}>
+                        <Icon name="user" size={50} color="#fff" />
+                    </View>
+                    <Text style={[styles.name, { color: isDark ? '#fff' : '#222' }]}>{user.username}</Text>
+                    <Text style={[styles.email, { color: isDark ? '#ccc' : '#555' }]}>{user.email}</Text>
+                    <Text style={[styles.role, { color: isDark ? '#aaa' : '#777' }]}>Role: {user.role}</Text>
                 </View>
-                <Text style={[styles.name, { color: isDark ? '#fff' : '#222' }]}>{user.username}</Text>
-                <Text style={[styles.email, { color: isDark ? '#ccc' : '#555' }]}>{user.email}</Text>
-                <Text style={[styles.role, { color: isDark ? '#aaa' : '#777' }]}>Role: {user.role}</Text>
-            </View>
 
-            {/* Dashboard Section */}
-            <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#333' }]}>Your Dashboard</Text>
-                <View style={styles.cardGrid}>
-                    {dashboardItems.map((item, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            onPress={() => navigation.navigate(item.route)}
-                            style={[
-                                styles.card,
-                                { backgroundColor: isDark ? '#222' : '#fff' },
-                            ]}
-                        >
-                            <Icon name={item.icon} size={26} color="#059BDE" />
-                            <Text style={[styles.cardText, { color: isDark ? '#eee' : '#333' }]}>
-                                {item.label}
-                                {item.value ? `: ${item.value}` : ''}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                {/* Dashboard Section */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#333' }]}>
+                        Your Dashboard
+                    </Text>
+                    <View style={styles.cardGrid}>
+                        {dashboardItems.map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => navigation.navigate(item.route)}
+                                style={[
+                                    styles.card,
+                                    { backgroundColor: isDark ? '#222' : '#fff' },
+                                ]}
+                            >
+                                <Icon name={item.icon} size={26} color="#059BDE" />
+                                <Text style={[styles.cardText, { color: isDark ? '#eee' : '#333' }]}>
+                                    {item.label}
+                                    {item.value ? `: ${item.value}` : ''}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
-            </View>
 
-            {/* Logout */}
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-                <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-        </ScrollView>
+                {/* Logout */}
+                <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+                    <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
+            </ScrollView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: '#E8F9FF',
-
-    }
-    ,
+        paddingBottom: 30,
+    },
     header: {
         alignItems: 'center',
         paddingVertical: 50,

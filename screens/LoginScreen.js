@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity,
-    StyleSheet, Alert, Image, ScrollView, useColorScheme
+    StyleSheet, Alert, Image, ScrollView, useColorScheme, Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
-import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { BASE_URL } from "../scr/config";
+
+// ✅ Auto-detect backend host
+const getBaseURL = () => {
+    if (Platform.OS === 'android') return BASE_URL;
+    if (Platform.OS === 'ios') return 'http://127.0.0.1:8000';
+    return 'http://127.0.0.1:8000';
+};
 
 const LoginScreen = ({ navigation }) => {
     const { login } = useContext(AuthContext);
@@ -19,30 +26,41 @@ const LoginScreen = ({ navigation }) => {
     const isDark = colorScheme === 'dark';
 
     useEffect(() => {
+        preloadEmail();
         checkAutoLogin();
     }, []);
 
+    const preloadEmail = async () => {
+        try {
+            const savedEmail = await AsyncStorage.getItem('saved_email');
+            if (savedEmail) setEmail(savedEmail);
+        } catch (e) {
+            console.log('Failed to load saved email', e);
+        }
+    };
+
     const checkAutoLogin = async () => {
-        const token = await AsyncStorage.getItem('access_token');
-        const user = await AsyncStorage.getItem('user');
-        if (token && user) {
-            const userData = JSON.parse(user);
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Home', params: userData }]
-            });
+        try {
+            const token = await AsyncStorage.getItem('access_token');
+            const user = await AsyncStorage.getItem('user');
+            if (token && user) {
+                const userData = JSON.parse(user);
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Home', params: userData }],
+                });
+            }
+        } catch (err) {
+            console.log('Auto login error:', err);
         }
     };
 
     const validateForm = () => {
         const newErrors = {};
         const emailRegex = /\S+@\S+\.\S+/;
-
         if (!email.trim()) newErrors.email = 'Email is required';
         else if (!emailRegex.test(email)) newErrors.email = 'Invalid email';
-
         if (!password.trim()) newErrors.password = 'Password is required';
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -51,33 +69,47 @@ const LoginScreen = ({ navigation }) => {
         if (!validateForm()) return;
 
         try {
-            const response = await axios.post('http://192.168.10.108:8000/api/login/', {
+            const baseURL = getBaseURL();
+            const response = await axios.post(`${baseURL}/api/login/`, {
                 email,
                 password,
             });
 
-            if (response.data.success) {
-                const userData = response.data.data;
+            // ✅ Log the full response once to confirm its structure
+            console.log("Login response:", response.data);
 
-                await AsyncStorage.setItem('access_token', userData.access);
-                await AsyncStorage.setItem('refresh_token', userData.refresh);
-                await AsyncStorage.setItem('user', JSON.stringify(userData));
+            // ✅ The backend might return either:
+            // { success: true, data: {...} } or { id, token, email, ... }
+            const userData = response.data.data || response.data;
 
-                Alert.alert('Success', 'Logged in!');
-                await login(userData);
-                console.log(userData.username)
-            } else {
-                Alert.alert('Login Failed', response.data.message || 'Something went wrong');
-                console.log(response.data.message)
+            // ✅ Safely extract token
+            const token =
+                userData.token ||
+                userData.access ||
+                userData.access_token ||
+                response.data.token ||
+                null;
+
+            if (!token) {
+                console.warn("⚠️ No token found in login response:", response.data);
+                Alert.alert("Login Failed", "No token returned from server");
+                return;
             }
 
+            // ✅ Store values only if defined
+            await AsyncStorage.setItem('access_token', token);
+            if (userData.id) await AsyncStorage.setItem('user_id', userData.id.toString());
+            await AsyncStorage.setItem('user', JSON.stringify(userData));
+            await AsyncStorage.setItem('saved_email', email);
+
+            Alert.alert('Success', 'Logged in!');
+            await login(userData);
         } catch (error) {
-            console.log('Login error:', error.response?.data); // debug line
-            const msg = error.response?.data?.error || 'Invalid credentials or server error';
+            console.log("Login error:", error.message);
+            const msg = error.response?.data?.error || 'Connection error or invalid credentials';
             Alert.alert('Login Error', msg);
         }
     };
-
 
     const theme = getStyles(isDark);
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -15,22 +15,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
+import { useRoute } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
-// Dynamically resolve local backend address
 const getBaseURL = () => {
     if (Platform.OS === "android") return "http://192.168.10.108:8000"; // Android Emulator
     if (Platform.OS === "ios") return "http://127.0.0.1:8000";    // iOS Simulator
     return "http://127.0.0.1:8000";                              // Web / desktop
 };
 
-const CreatePostScreen = ({ navigation }) => {
-    const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
-    const [category, setCategory] = useState("general");
-    const [tags, setTags] = useState("");
-    const [images, setImages] = useState([]);
+const EditPostScreen = ({ navigation }) => {
+    const route = useRoute();
+    const { postId, existingData } = route.params;
+
+    const [title, setTitle] = useState(existingData.title || "");
+    const [content, setContent] = useState(existingData.content || "");
+    const [category, setCategory] = useState(existingData.category || "general");
+    const [tags, setTags] = useState(existingData.tags || "");
+    const [images, setImages] = useState(existingData.images || []);
+    const [removeImages, setRemoveImages] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // 🖼️ Pick up to 5 images
@@ -53,8 +57,8 @@ const CreatePostScreen = ({ navigation }) => {
         }
     };
 
-    // 🚀 Create Post
-    const handleCreatePost = async () => {
+    // 🚀 Edit Post
+    const handleEditPost = async () => {
         if (!title.trim() || !content.trim()) {
             Alert.alert("Validation Error", "Title and content are required.");
             return;
@@ -88,9 +92,14 @@ const CreatePostScreen = ({ navigation }) => {
                 });
             });
 
+            // Add images to remove
+            if (removeImages.length > 0) {
+                formData.append("remove_images", removeImages.join(","));
+            }
+
             // ✅ Do NOT set "Content-Type" manually for FormData
-            const response = await fetch(`${baseURL}/api/community/posts/`, {
-                method: "POST",
+            const response = await fetch(`${baseURL}/api/community/posts/${postId}/`, {
+                method: "PATCH",
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -101,11 +110,11 @@ const CreatePostScreen = ({ navigation }) => {
             console.log("POST RESPONSE:", result);
 
             if (response.ok && result.success !== false) {
-                Alert.alert("✅ Success", "Post created successfully!");
+                Alert.alert("✅ Success", "Post updated successfully!");
                 navigation.goBack();
             } else {
                 console.error("POST FAILED:", result);
-                Alert.alert("❌ Error", result.message || "Failed to create post.");
+                Alert.alert("❌ Error", result.message || "Failed to update post.");
             }
         } catch (error) {
             console.error("POST ERROR:", error);
@@ -115,13 +124,19 @@ const CreatePostScreen = ({ navigation }) => {
         }
     };
 
+    // Handle image removal (for images to delete)
+    const handleRemoveImage = (uri) => {
+        setRemoveImages((prev) => [...prev, uri]);
+        setImages((prev) => prev.filter((image) => image !== uri));
+    };
+
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                 <Ionicons name="chevron-back-outline" size={24} color="#059BDE" />
             </TouchableOpacity>
 
-            <Text style={styles.header}>Create New Post</Text>
+            <Text style={styles.header}>Edit Post</Text>
 
             <TextInput
                 style={styles.input}
@@ -170,25 +185,33 @@ const CreatePostScreen = ({ navigation }) => {
             {images.length > 0 && (
                 <View style={styles.imagePreviewContainer}>
                     {images.map((uri, index) => (
-                        <Image key={index} source={{ uri }} style={styles.imagePreview} />
+                        <View key={index} style={styles.imagePreviewWrapper}>
+                            <Image source={{ uri }} style={styles.imagePreview} />
+                            <TouchableOpacity
+                                style={styles.removeImageButton}
+                                onPress={() => handleRemoveImage(uri)}
+                            >
+                                <Ionicons name="trash" size={18} color="red" />
+                            </TouchableOpacity>
+                        </View>
                     ))}
                 </View>
             )}
 
             <TouchableOpacity
                 style={[styles.button, loading && { opacity: 0.6 }]}
-                onPress={handleCreatePost}
+                onPress={handleEditPost}
                 disabled={loading}
             >
                 <Text style={styles.buttonText}>
-                    {loading ? "Posting..." : "Create Post"}
+                    {loading ? "Updating..." : "Update Post"}
                 </Text>
             </TouchableOpacity>
         </ScrollView>
     );
 };
 
-export default CreatePostScreen;
+export default EditPostScreen;
 
 const styles = StyleSheet.create({
     container: {
@@ -250,10 +273,21 @@ const styles = StyleSheet.create({
         gap: 10,
         marginBottom: 15,
     },
+    imagePreviewWrapper: {
+        position: "relative",
+    },
     imagePreview: {
         width: width * 0.25,
         height: width * 0.25,
         borderRadius: 8,
+    },
+    removeImageButton: {
+        position: "absolute",
+        top: -5,
+        right: -5,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        borderRadius: 15,
+        padding: 5,
     },
     button: {
         backgroundColor: "#059BDE",

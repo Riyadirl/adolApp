@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Modal,
-    TextInput, ScrollView
+    TextInput, ScrollView, Alert, Platform
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { BASE_URL } from "../scr/config";
+
+const getBaseURL = () => {
+    if (Platform.OS === 'android') return BASE_URL; // Android emulator
+    if (Platform.OS === 'ios') return 'http://127.0.0.1:8000'; // iOS simulator
+    return 'http://127.0.0.1:8000'; // Web or desktop
+};
 
 const SettingsScreen = () => {
     const navigation = useNavigation();
@@ -19,12 +28,65 @@ const SettingsScreen = () => {
         profilePic: null,
     });
 
-    const handleChange = (key, value) => {
-        setForm(prev => ({ ...prev, [key]: value }));
-    };
+    const [passwordForm, setPasswordForm] = useState({
+        current: '',
+        newPass: '',
+        confirm: '',
+    });
 
+    const handleChange = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+    const handlePasswordChange = (key, value) => setPasswordForm(prev => ({ ...prev, [key]: value }));
     const closeModal = () => setModalVisible(null);
 
+    // ✅ Change Password Handler
+    const handleChangePassword = async () => {
+        const { current, newPass, confirm } = passwordForm;
+
+        if (!current || !newPass || !confirm) {
+            Alert.alert('Error', 'All fields are required');
+            return;
+        }
+        if (newPass !== confirm) {
+            Alert.alert('Error', 'New passwords do not match');
+            return;
+        }
+
+        try {
+            const baseURL = getBaseURL();
+            const token = await AsyncStorage.getItem('access_token');
+            const savedEmail = await AsyncStorage.getItem('saved_email'); // optional
+
+            const payload = {
+                email: savedEmail || undefined,
+                current_password: current,
+                new_password: newPass,
+            };
+
+            const response = await axios.patch(`${baseURL}/api/change-password/`, payload, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.status === 200 || response.data.success) {
+                Alert.alert('Success', 'Password changed successfully!');
+                setPasswordForm({ current: '', newPass: '', confirm: '' });
+                closeModal();
+            } else {
+                Alert.alert('Failed', response.data.message || 'Something went wrong');
+            }
+        } catch (error) {
+            console.log('Password change error:', error);
+            const msg =
+                error.response?.data?.error ||
+                error.response?.data?.message ||
+                'Connection or server error';
+            Alert.alert('Error', msg);
+        }
+    };
+
+    // Update Profile Modal (optional)
     const renderUpdateProfileModal = () => (
         <Modal visible={modalVisible === 'update'} transparent animationType="slide">
             <View style={styles.modalWrapper}>
@@ -57,16 +119,14 @@ const SettingsScreen = () => {
                         onChangeText={(text) => handleChange('password', text)}
                     />
 
-                    <View>
-                        <Picker
-                            selectedValue={form.role}
-                            onValueChange={(itemValue) => handleChange('role', itemValue)}
-                            style={styles.pickerWrapper}
-                        >
-                            <Picker.Item label="Adolescent" value="Adolescent" />
-                            <Picker.Item label="Parent" value="Parent" />
-                        </Picker>
-                    </View>
+                    <Picker
+                        selectedValue={form.role}
+                        onValueChange={(itemValue) => handleChange('role', itemValue)}
+                        style={styles.pickerWrapper}
+                    >
+                        <Picker.Item label="Adolescent" value="Adolescent" />
+                        <Picker.Item label="Parent" value="Parent" />
+                    </Picker>
 
                     <TouchableOpacity style={styles.button}>
                         <Text style={styles.buttonText}>Update</Text>
@@ -80,6 +140,7 @@ const SettingsScreen = () => {
         </Modal>
     );
 
+    // Change Password Modal
     const renderChangePasswordModal = () => (
         <Modal visible={modalVisible === 'password'} transparent animationType="slide">
             <View style={styles.modalWrapper}>
@@ -90,21 +151,28 @@ const SettingsScreen = () => {
                         style={styles.input}
                         placeholder="Current Password"
                         secureTextEntry
+                        value={passwordForm.current}
+                        onChangeText={(text) => handlePasswordChange('current', text)}
                     />
                     <TextInput
                         style={styles.input}
                         placeholder="New Password"
                         secureTextEntry
+                        value={passwordForm.newPass}
+                        onChangeText={(text) => handlePasswordChange('newPass', text)}
                     />
                     <TextInput
                         style={styles.input}
                         placeholder="Confirm New Password"
                         secureTextEntry
+                        value={passwordForm.confirm}
+                        onChangeText={(text) => handlePasswordChange('confirm', text)}
                     />
 
-                    <TouchableOpacity style={styles.button}>
+                    <TouchableOpacity style={styles.button} onPress={handleChangePassword}>
                         <Text style={styles.buttonText}>Change Password</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity onPress={closeModal}>
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
